@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Moodie — Your Mood Companion</title>
+<link rel="stylesheet" href="css/style.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="app">
+
+  <header>
+    <div class="logo" onclick="logoClick()"><em>Moodie</em></div>
+    <div class="header-right">
+      <div class="user-chip" id="user-chip" onclick="editName()">
+        <span class="user-dot"></span>
+        <span id="user-chip-name"></span>
+      </div>
+      <button class="logout-btn" id="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <div class="mood-history" id="history-bar" style="display:none;"></div>
+
+  <!-- AUTH SCREEN -->
+  <div class="screen active" id="screen-auth">
+    <div class="auth-box">
+      <div class="auth-logo"><em>Moodie</em></div>
+      <div class="auth-tagline">Your personal mood companion</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login"  onclick="switchTab('login')">Sign in</button>
+        <button class="auth-tab"        id="tab-signup" onclick="switchTab('signup')">Sign up</button>
+      </div>
+      <div class="auth-fields">
+        <input class="auth-field" id="auth-name" type="text"     placeholder="Your full name"  maxlength="30" style="display:none" oninput="pwStrength()"/>
+        <input class="auth-field" id="auth-user" type="text"     placeholder="Username"        maxlength="30"/>
+        <input class="auth-field" id="auth-pass" type="password" placeholder="Password"        maxlength="40" oninput="pwStrength()" onkeydown="if(event.key==='Enter')authSubmit()"/>
+        <div class="pw-strength" id="pw-strength"><div class="pw-bar" id="pw-bar"></div></div>
+      </div>
+      <button class="auth-submit" onclick="authSubmit()" id="auth-btn">Sign in</button>
+      <div class="auth-msg error"   id="auth-error"></div>
+      <div class="auth-msg success" id="auth-ok"></div>
+    </div>
+  </div>
+
+  <!-- MOOD SCREEN -->
+  <div class="screen" id="screen-mood">
+    <h1 class="headline" id="mood-headline">How are you<br><em>feeling today?</em></h1>
+    <p class="sub">Pick your mood and get personalised tasks, tips, and a space to talk.</p>
+    <div class="mood-grid">
+      <div class="mood-tile" data-mood="happy"   onclick="selectMood(this)"><div class="mood-emoji">😊</div><div class="mood-label">Happy</div></div>
+      <div class="mood-tile" data-mood="sad"     onclick="selectMood(this)"><div class="mood-emoji">😔</div><div class="mood-label">Sad</div></div>
+      <div class="mood-tile" data-mood="anxious" onclick="selectMood(this)"><div class="mood-emoji">😰</div><div class="mood-label">Anxious</div></div>
+      <div class="mood-tile" data-mood="angry"   onclick="selectMood(this)"><div class="mood-emoji">😠</div><div class="mood-label">Angry</div></div>
+      <div class="mood-tile" data-mood="tired"   onclick="selectMood(this)"><div class="mood-emoji">😴</div><div class="mood-label">Tired</div></div>
+      <div class="mood-tile" data-mood="meh"     onclick="selectMood(this)"><div class="mood-emoji">😐</div><div class="mood-label">Meh</div></div>
+    </div>
+    <button class="primary-btn" id="continue-btn" onclick="goToResults()">Continue →</button>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div class="screen" id="screen-results">
+    <button class="back-btn" onclick="showScreen('mood')">← Back</button>
+    <div class="result-greeting" id="result-greeting"></div>
+    <div class="mood-badge" id="mood-badge"></div>
+    <div id="results-content">
+      <div class="loading-state"><div class="loader-ring"></div><div class="loader-text">Reading your mood…</div></div>
+    </div>
+    <button class="primary-btn visible" id="chat-jump-btn" onclick="goToChat()">Chat with Moodie →</button>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div class="screen" id="screen-chat">
+    <div class="chat-topbar">
+      <div class="chat-title">Chat with Moodie</div>
+      <div class="chat-mood-pill" id="chat-mood-pill"></div>
+      <button class="chat-back" onclick="showScreen('results')">← Results</button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="chat-input-area">
+      <input class="chat-input" id="chat-input" placeholder="What's on your mind…" onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button class="send-btn" onclick="sendChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0d0d0d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
