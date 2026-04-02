@@ -12,7 +12,7 @@ An AI-powered mood companion web app that takes your emotional input and returns
 ![Mood](assets/mood.png)
 
 ### 📊 Results
-![Results](assets/results.png)
+![Results](assets/result.png)
 
 ### 💬 Chat Interface
 ![Chat](assets/chat.png)
