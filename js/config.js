@@ -1,6 +1,6 @@
 const CONFIG = {
 
-  API_KEY: "YOUR_API_KEY",  // paste your api key here
+  API_KEY: "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",  // paste your api key here
 
  
   API_URL: "https://api.groq.com/openai/v1/chat/completions",
