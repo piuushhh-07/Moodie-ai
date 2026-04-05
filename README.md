@@ -8,11 +8,14 @@ An AI-powered mood companion web app that takes your emotional input and returns
 ### 🔐 Authentication
 ![Auth](assets/signup.png)
 
+### 🤖 Models
+![Auth](assets/AImodel.png)
+
 ### 🎯 Mood Selection
-![Mood](assets/mood.png)
+![Mood](assets/dashboard.png)
 
 ### 📊 Results
-![Results](assets/results.png)
+![Results](assets/suggestion.png)
 
 ### 💬 Chat Interface
 ![Chat](assets/chat.png)
