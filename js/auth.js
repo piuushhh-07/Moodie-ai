@@ -12,7 +12,7 @@ let currentUser = '';
 let userName    = '';
 let activeTab   = 'login';
 
-// ── TAB SWITCHER ─────────────────────────────────────────────
+
 function switchTab(tab) {
   activeTab = tab;
   const isSignup = tab === 'signup';
@@ -30,7 +30,6 @@ function switchTab(tab) {
   setTimeout(() => document.getElementById(isSignup ? 'auth-name' : 'auth-user').focus(), 60);
 }
 
-// ── PASSWORD STRENGTH BAR ────────────────────────────────────
 function pwStrength() {
   if (activeTab !== 'signup') return;
   const pw = document.getElementById('auth-pass').value;
@@ -44,7 +43,6 @@ function pwStrength() {
   bar.style.background = ['', '#e87a7a', '#e8c97a', '#a3c97a', '#69d68b'][s] || '#e87a7a';
 }
 
-// ── MESSAGES ─────────────────────────────────────────────────
 function showErr(msg) {
   const e = document.getElementById('auth-error');
   e.textContent = msg; e.classList.add('show');
@@ -54,7 +52,6 @@ function showOk(msg) {
   e.textContent = msg; e.classList.add('show');
 }
 
-// ── SUBMIT HANDLER ───────────────────────────────────────────
 function authSubmit() {
   document.getElementById('auth-error').classList.remove('show');
   document.getElementById('auth-ok').classList.remove('show');
@@ -83,7 +80,6 @@ function authSubmit() {
   }
 }
 
-// ── LOGIN / LOGOUT ───────────────────────────────────────────
 function doLogin(uname, name) {
   currentUser = uname;
   userName    = name;
@@ -121,7 +117,6 @@ function editName() {
   }
 }
 
-// ── SESSION RESTORE ON LOAD ──────────────────────────────────
 function initAuth() {
   const saved = getSession();
   if (saved) {
