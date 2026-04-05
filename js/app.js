@@ -1,5 +1,4 @@
-//  app.js — Mood Selection, Results, Chat (Groq / Llama 3 Version)
-
+//  app.js — Mood Selection, Results, Chat (OpenRouter — 3 Model Version)
 
 const MOODS = {
   happy:   { emoji: '😊', color: '#a3c97a', label: 'Happy'   },
@@ -10,27 +9,87 @@ const MOODS = {
   meh:     { emoji: '😐', color: '#9e9a94', label: 'Meh'     },
 };
 
-const SYS = `You are Moodie — a warm, emotionally intelligent mood companion. Speak calmly and genuinely. Avoid clichés.
+// System prompt for the FIRST mood message only (structured cards)
+const SYS_RESULTS = `You are Moodie. The user just selected their mood. Respond EXACTLY in this format and nothing else:
 
-When given a mood, respond EXACTLY in this format:
 TASKS:
-1. [specific task suited to mood]
+1. [specific task for this mood]
 2. [specific task]
 3. [specific task]
 
 SUGGESTIONS:
-1. [wellness or mindset tip]
+1. [genuine wellness tip]
 2. [tip]
 3. [tip]
 
 AFFIRMATION:
-[One short, genuine sentence — not cheesy]
+[One short honest sentence, not cheesy]`;
 
-For follow-up messages: reply naturally, warmly, concisely (under 150 words). You remember the user's mood and name.`;
+// System prompt for CHAT — completely different, no structure allowed
+const SYS_CHAT = `You are Moodie — not an AI, not a bot. You are like a close elder sibling or best friend who genuinely cares.
 
-let mood       = null;
-let resultText = null;
-let history    = [];
+STRICT RULES — break any of these and you fail:
+- NEVER use TASKS, SUGGESTIONS, AFFIRMATION, bullet points, or numbered lists. Ever. Not even once.
+- NEVER write more than 3-4 sentences per reply
+- NEVER say "I understand", "That must be hard", "I'm here for you" — these are fake phrases
+- NEVER sound like a therapist or assistant
+- ALWAYS reply like you're texting a close friend — casual, warm, short
+- Use Hindi/Hinglish naturally if they use it (bhai, yaar, arre, etc.)
+- Sometimes just ask one small question instead of giving advice
+- When they're sad — just be present first, don't fix
+- When they're happy — match their energy!
+- When they say something serious like suicide/self harm — be gentle, real, and suggest iCall (9152987821)
+
+Example of GOOD reply: "arre yaar kya hua bata 😔 main sun raha hun"
+Example of BAD reply: "I understand you're feeling sad. Here are some suggestions: 1. Take a walk..."
+
+You are their person. Be real. Be short. Be warm.`;
+
+let mood        = null;
+let resultText  = null;
+let history     = [];
+let chatStarted = false; // tracks if we're in chat mode
+
+// ── MODEL SWITCHER ───────────────────────────────────────────
+function initModelSwitcher() {
+  const switcher = document.getElementById('model-switcher');
+  if (!switcher) return;
+
+  switcher.innerHTML = Object.entries(CONFIG.MODELS).map(([key, m]) => `
+    <button
+      class="model-btn ${key === CONFIG.ACTIVE_MODEL ? 'active' : ''}"
+      data-model="${key}"
+      style="--model-color:${m.color}"
+      onclick="selectModel('${key}')"
+      title="${m.desc}"
+    >
+      <span class="model-icon">${m.icon}</span>
+      <span class="model-label">${m.label}</span>
+    </button>
+  `).join('');
+}
+
+function selectModel(key) {
+  CONFIG.ACTIVE_MODEL = key;
+  document.querySelectorAll('.model-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.model === key);
+  });
+  const m = CONFIG.MODELS[key];
+  showToast(`${m.icon} ${m.label} — ${m.desc}`);
+}
+
+function showToast(msg) {
+  let t = document.getElementById('model-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'model-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
 
 // ── SCREEN ROUTING ───────────────────────────────────────────
 function showScreen(id) {
@@ -55,15 +114,19 @@ function selectMood(el) {
   document.getElementById('continue-btn').classList.add('visible');
 }
 
-// ── API CALL HELPER (GROQ VERSION) ───────────────────────────
-async function callGroq(messages) {
-  if (!CONFIG.API_KEY || CONFIG.API_KEY.includes('YOUR_GROQ_API_KEY')) {
+// ── API CALL — uses different system prompt for results vs chat ──
+async function callAI(messages, isChat = false) {
+  if (!CONFIG.API_KEY || CONFIG.API_KEY.includes('YOUR_GROQ') || CONFIG.API_KEY.includes('YOUR_OPENROUTER')) {
     throw new Error('API key not set. Get your free key at https://console.groq.com');
   }
 
-  // Prepend system message — Groq uses OpenAI-compatible format
+  const model = CONFIG.MODELS[CONFIG.ACTIVE_MODEL];
+
+  // Use SYS_CHAT for all chat messages, SYS_RESULTS only for first mood message
+  const systemPrompt = isChat ? SYS_CHAT : SYS_RESULTS;
+
   const fullMessages = [
-    { role: 'system', content: SYS },
+    { role: 'system', content: systemPrompt },
     ...messages
   ];
 
@@ -72,32 +135,36 @@ async function callGroq(messages) {
     headers: {
       'Content-Type':  'application/json',
       'Authorization': `Bearer ${CONFIG.API_KEY}`,
+      
     },
+    
     body: JSON.stringify({
-      model:      CONFIG.MODEL,
-      max_tokens: CONFIG.MAX_TOKENS,
-      temperature: 0.7,
-      messages:   fullMessages,
+      model:       model.id,
+      max_tokens:  CONFIG.MAX_TOKENS,
+      temperature: isChat ? 0.9 : 0.75,  // higher temp in chat = more natural
+      messages:    fullMessages,
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error("Free limit hit 😅 Switch model ya kal try karo!");
+    if (res.status === 404) throw new Error("Model abhi available nahi. Upar se Auto switch karo!");
     throw new Error(err?.error?.message || `API error ${res.status}`);
   }
 
   const data = await res.json();
-
   try {
     return data.choices[0].message.content;
   } catch (e) {
-    throw new Error('Unexpected response from Groq API.');
+    throw new Error('Unexpected response from API.');
   }
 }
 
 // ── RESULTS ──────────────────────────────────────────────────
 async function goToResults() {
   if (!mood) return;
+  chatStarted = false;
   showScreen('results');
 
   const m = MOODS[mood];
@@ -108,20 +175,25 @@ async function goToResults() {
   badge.textContent = m.emoji + ' ' + m.label;
   badge.style.setProperty('--badge-color', m.color);
 
+  const activeModel = CONFIG.MODELS[CONFIG.ACTIVE_MODEL];
   document.getElementById('results-content').innerHTML =
-    `<div class="loading-state"><div class="loader-ring"></div><div class="loader-text">Personalising your plan…</div></div>`;
+    `<div class="loading-state">
+      <div class="loader-ring"></div>
+      <div class="loader-text">Moodie is thinking about you… ${activeModel.icon}</div>
+    </div>`;
   document.getElementById('chat-jump-btn').classList.remove('visible');
 
   try {
-    const userMsg = `My name is ${userName} and my current mood: ${mood}`;
-    resultText = await callGroq([{ role: 'user', content: userMsg }]);
+    const userMsg = `My name is ${userName} and my current mood is: ${mood}`;
+    // isChat = false — use structured SYS_RESULTS prompt
+    resultText = await callAI([{ role: 'user', content: userMsg }], false);
 
+    // Chat history starts fresh — uses SYS_CHAT from here
     history = [
-      { role: 'user',      content: userMsg    },
-      { role: 'assistant', content: resultText },
+      { role: 'user',      content: `My name is ${userName}. I'm feeling ${mood} today.` },
+      { role: 'assistant', content: `Got it ${userName}, I'm here with you 💙` },
     ];
 
-    // Save to per-user log
     const users = getUsers();
     if (users[currentUser]) {
       users[currentUser].log = users[currentUser].log || [];
@@ -140,7 +212,7 @@ async function goToResults() {
   } catch (e) {
     document.getElementById('results-content').innerHTML =
       `<div class="loading-state">
-        <div class="loader-text" style="color:#e87a7a;text-align:center;">
+        <div class="loader-text" style="color:#e87a7a;text-align:center;line-height:1.6;">
           ${e.message || 'Something went wrong. Please try again.'}
         </div>
       </div>`;
@@ -168,6 +240,8 @@ function renderCards(text) {
   const fallT = ['Do one small thing you have been putting off', 'Write down 3 things that went well', 'Take a 10-minute walk outside'];
   const fallS = ['Drink a glass of water right now', 'Step away from screens for 5 min', 'Take 3 slow, deep breaths'];
 
+  const activeModel = CONFIG.MODELS[CONFIG.ACTIVE_MODEL];
+
   document.getElementById('results-content').innerHTML = `
     <div class="results-grid">
       <div class="result-card card-tasks">
@@ -182,19 +256,38 @@ function renderCards(text) {
         <div class="card-label">Today's affirmation</div>
         <div class="affirmation-text">${aff}</div>
       </div>` : ''}
-    </div>`;
+    </div>
+    <div class="model-credit">${activeModel.icon} Powered by ${activeModel.label}</div>`;
 }
 
 // ── CHAT ─────────────────────────────────────────────────────
 function goToChat() {
+  chatStarted = true;
   const m = MOODS[mood];
   document.getElementById('chat-mood-pill').textContent = m.emoji + ' ' + m.label;
+
+  const activeModel = CONFIG.MODELS[CONFIG.ACTIVE_MODEL];
+  const modelPill = document.getElementById('chat-model-pill');
+  if (modelPill) {
+    modelPill.textContent = activeModel.icon + ' ' + activeModel.label;
+    modelPill.style.color = activeModel.color;
+    modelPill.style.borderColor = activeModel.color + '44';
+  }
+
   const msgs = document.getElementById('messages');
   msgs.innerHTML = '';
-  if (resultText) {
-    const cleanIntro = resultText.replace(/(TASKS:|SUGGESTIONS:|AFFIRMATION:)/g, '\n$1');
-    addMsg('bot', cleanIntro);
-  }
+
+  // Opening message from Moodie — warm, short, NOT structured
+  const openings = {
+    happy:   `arre waah ${userName}! khush ho aaj 😊 kya hua bata!`,
+    sad:     `hey ${userName} 😔 kya hua yaar? bata mujhe...`,
+    anxious: `${userName} saans lo pehle 💙 main hun yahan. kya chal raha hai?`,
+    angry:   `arre ${userName} kaun hai jo tang kar raha hai 😤 bata mujhe`,
+    tired:   `yaar kitna kaam kar lete ho 😴 rest karo thoda. kya hua?`,
+    meh:     `${userName} theek nahi lag raha kuch? baat kar mere se 🙂`,
+  };
+
+  addMsg('bot', openings[mood] || `hey ${userName} 💙 kya chal raha hai?`);
   showScreen('chat');
 }
 
@@ -228,13 +321,14 @@ async function sendChat() {
   history.push({ role: 'user', content: msg });
 
   try {
-    const reply = await callGroq(history);
+    // Always isChat = true in chat screen
+    const reply = await callAI(history, true);
     history.push({ role: 'assistant', content: reply });
     document.getElementById('typing')?.remove();
     addMsg('bot', reply);
   } catch (e) {
     document.getElementById('typing')?.remove();
-    addMsg('bot', e.message || 'Something went wrong. Please try again.');
+    addMsg('bot', '⚠️ ' + (e.message || 'Kuch gadbad ho gayi, dobara try karo!'));
   }
 }
 
@@ -258,3 +352,4 @@ function updateLog() {
 
 // ── INIT ─────────────────────────────────────────────────────
 initAuth();
+initModelSwitcher();
